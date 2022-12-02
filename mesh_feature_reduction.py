@@ -150,19 +150,29 @@ if __name__ == '__main__':
         else:
             print('Mesh translation:', 'No')
 
-    # Setup autoencoder
+    # Method: Autoencoder
     if str(args.method) == 'Autoencoder':
+        # Setup autoencoder
         latentdim = int(args.autoencoder_latentdim)
-        autoencoder = Autoencoder(latentdim)
+        dim_1, dim_2 = train_vertices_load.shape
+        autoencoder = Autoencoder(latentdim, dim_1, dim_2)
 
+        # Compile autoencoder
         autoencoder.compile(optimizer='adam', loss=losses.MeanSquaredError())
 
-        print(train_vertices_load.shape)
-
+        # Train autoencoder
         autoencoder.fit(train_vertices_load,
             train_vertices_load, 
             epochs=int(args.autoencoder_epochs), 
-            shuffle=True)
+            batch_size=1,
+            shuffle=True,
+            validation_data=(test_vertices_load, test_vertices_load))
+        
+        train_vertices_transformed = autoencoder.encoder(train_vertices_load).numpy()
+        train_vertices_transformed_inv = autoencoder.decoder(train_vertices_transformed)
+
+        test_vertices_transformed = autoencoder.encoder(test_vertices_load).numpy()
+        test_vertices_transformed_inv = autoencoder.decoder(test_vertices_transformed).numpy()
 
     print('-End of the process-\n')
 
