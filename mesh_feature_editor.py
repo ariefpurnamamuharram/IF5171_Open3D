@@ -34,6 +34,13 @@ if __name__ == '__main__':
         if args.translation_factor is None:
             raise ValueError('Translation factor can not leave blank!')
 
+    # Print the welcome header
+    print('\n')
+    print('*' * 36)
+    print('Welcome to the Mesh Feature Editor!')
+    print('*' * 36)
+    print('\n')
+
     # Create results folder, if not exists
     if not os.path.exists('results'):
         os.makedirs('results')
@@ -87,10 +94,10 @@ if __name__ == '__main__':
 
     print('-End of the process-\n')
 
-    print('--- Begin the PCA Analysis ---')
-
     # Method: PCA
     if str(args.method) == 'PCA':
+        print('--- Begin the PCA Analysis ---')
+
         # Reshape vertices
         train_vertices_load = train_vertices_load.reshape(train_vertices_load.shape[0], -1)
         test_vertices_load = test_vertices_load.reshape(test_vertices_load.shape[0], -1)
@@ -153,6 +160,8 @@ if __name__ == '__main__':
 
     # Method: Autoencoder
     if str(args.method) == 'Autoencoder':
+        print('--- Begin the Autoencoder Analysis ---')
+
         # Setup autoencoder
         latentdim = int(args.autoencoder_latentdim)
         autoencoder = Autoencoder(latentdim, dim_vertex_1, dim_vertex_2)
