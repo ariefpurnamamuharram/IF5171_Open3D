@@ -15,6 +15,8 @@ if __name__ == '__main__':
     parser.add_argument('--method', type=str, required=True)
     parser.add_argument('--filedir', type=str, required=True)
     parser.add_argument('--n_components', type=int)
+    parser.add_argument('--translation_comp', type=int)
+    parser.add_argument('--translation_factor', type=float)
     parser.add_argument('--write_mesh_train', type=bool, default=False)
     parser.add_argument('--write_mesh_test', type=bool, default=False)
     args = parser.parse_args()
@@ -24,6 +26,9 @@ if __name__ == '__main__':
         raise ValueError('Method not supported!')
     if str(args.method) == 'PCA' and (args.n_components == None or int(args.n_components) == 0):
         raise ValueError('n-Components can not be empty!')
+    if not args.translation_comp is None:
+        if args.translation_factor is None:
+            raise ValueError('Translation factor can not leave blank!')
 
     # Create results folder, if not exists
     if not os.path.exists('results'):
@@ -121,11 +126,28 @@ if __name__ == '__main__':
             fh.write('date\ttime\ttrain_mse\ttest_mse\n')
             fh.write(f'{now.strftime("%Y-%m-%d")}\t{now.strftime("%H:%M:%S")}\t{mse_test}\t{mse_train}')
 
-        # Write the PCA components
-        now = datetime.now()
-        model_filename = 'model_' + now.strftime('%Y%m%d') + '_' + now.strftime('%H%M%S') + '.npy'
-        with open(os.path.join('models', model_filename), 'wb') as fh:
-            np.save(fh, train_vertices_transformed)
+        # Mesh translation
+        if not args.translation_comp is None:
+            if int(args.translation_comp) > n_components:
+                print('PCA component number is out of index! Skipping the process...')
+            else:
+                print('Mesh translation:', 'Yes')
+
+                idx = int(args.translation_comp)
+                factor = float(args.translation_factor)
+
+                print('PCA component no.:', idx)
+                print('Translation factor:', factor)
+
+                # Translate the train mesh
+                train_vertices_transformed[idx] = train_vertices_transformed[idx] * factor
+                train_vertices_transformed_inv = pca.inverse_transform(train_vertices_transformed)
+
+                # Translate the test mesh
+                test_vertices_transformed[idx] = test_vertices_transformed[idx] * factor
+                test_vertices_transformed_inv = pca.inverse_transform(test_vertices_transformed)
+        else:
+            print('Mesh translation:', 'No')
 
     print('-End of the process-\n')
 
