@@ -60,33 +60,30 @@ if __name__ == '__main__':
 
     print('--- Begin Reading the Data ---')
 
+    # Load train vertices and triangles
     train_vertices_load = []
     train_triangles_load = []
-
     for file in file_train:
         filepath = os.path.join(str(args.filedir), file)
         mesh = o3d.io.read_triangle_mesh(filepath)
         train_vertices_load.append(mesh.vertices)
         train_triangles_load.append(mesh.triangles)
 
+    # Load test vertices and triangles
     test_vertices_load = []
     test_triangles_load = []
-
     for file in file_test:
         filepath = os.path.join(str(args.filedir), file)
         mesh = o3d.io.read_triangle_mesh(filepath)
         test_vertices_load.append(mesh.vertices)
         test_triangles_load.append(mesh.triangles)
 
+    # Convert to NumPy array
     train_vertices_load = np.array(train_vertices_load)
     test_vertices_load = np.array(test_vertices_load)
 
     # Get vertex dimension
     _, dim_vertex_1, dim_vertex_2 = train_vertices_load.shape
-    
-    # Reshape vertices
-    train_vertices_load = train_vertices_load.reshape(train_vertices_load.shape[0], -1)
-    test_vertices_load = test_vertices_load.reshape(test_vertices_load.shape[0], -1)
 
     print('-End of the process-\n')
 
@@ -94,6 +91,10 @@ if __name__ == '__main__':
 
     # Method: PCA
     if str(args.method) == 'PCA':
+        # Reshape vertices
+        train_vertices_load = train_vertices_load.reshape(train_vertices_load.shape[0], -1)
+        test_vertices_load = test_vertices_load.reshape(test_vertices_load.shape[0], -1)
+
         # Setup PCA n-components
         if int(args.n_components) > len(train_vertices_load):
             print('Warning! n-Components is too many. Using the max possible value.')
@@ -154,22 +155,20 @@ if __name__ == '__main__':
     if str(args.method) == 'Autoencoder':
         # Setup autoencoder
         latentdim = int(args.autoencoder_latentdim)
-        dim_1, dim_2 = train_vertices_load.shape
-        autoencoder = Autoencoder(latentdim, dim_1, dim_2)
+        autoencoder = Autoencoder(latentdim, dim_vertex_1, dim_vertex_2)
 
         # Compile autoencoder
         autoencoder.compile(optimizer='adam', loss=losses.MeanSquaredError())
 
         # Train autoencoder
-        autoencoder.fit(train_vertices_load,
-            train_vertices_load, 
+        autoencoder.fit(train_vertices_load, train_vertices_load, 
             epochs=int(args.autoencoder_epochs), 
             batch_size=1,
             shuffle=True,
             validation_data=(test_vertices_load, test_vertices_load))
         
         train_vertices_transformed = autoencoder.encoder(train_vertices_load).numpy()
-        train_vertices_transformed_inv = autoencoder.decoder(train_vertices_transformed)
+        train_vertices_transformed_inv = autoencoder.decoder(train_vertices_transformed).numpy()
 
         test_vertices_transformed = autoencoder.encoder(test_vertices_load).numpy()
         test_vertices_transformed_inv = autoencoder.decoder(test_vertices_transformed).numpy()
