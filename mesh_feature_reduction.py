@@ -12,15 +12,17 @@ from datetime import datetime
 if __name__ == '__main__':
     # Preparing the argument parser
     parser = argparse.ArgumentParser()
-    parser.add_argument('--method', required=True)
-    parser.add_argument('--filedir', required=True)
-    parser.add_argument('--n_components')
+    parser.add_argument('--method', type=str, required=True)
+    parser.add_argument('--filedir', type=str, required=True)
+    parser.add_argument('--n_components', type=int)
+    parser.add_argument('--write_mesh_train', type=bool, default=False)
+    parser.add_argument('--write_mesh_test', type=bool, default=False)
     args = parser.parse_args()
 
     # Check the arguments
     if not str(args.method) in ('PCA'):
         raise ValueError('Method not supported!')
-    if str(args.method) == 'PCA' and args.n_components == None:
+    if str(args.method) == 'PCA' and (args.n_components == None or int(args.n_components) == 0):
         raise ValueError('n-Components can not be empty!')
 
     # Create results folder, if not exists
@@ -45,6 +47,9 @@ if __name__ == '__main__':
     file_train, file_test = train_test_split(
         files, test_size=0.1, random_state=0
     )
+
+    print('Train size:', len(file_train))
+    print('Test size:', len(file_test))
 
     print('-End of the process-\n')
 
@@ -141,12 +146,14 @@ if __name__ == '__main__':
             o3d.io.write_triangle_mesh(os.path.join('results', filename), mesh)
 
     # Write out the train dataset
-    train_vertices_transformed = train_vertices_transformed_inv.reshape(train_vertices_transformed_inv.shape[0], dim_vertex_1, dim_vertex_2)
-    write_out(train_vertices_transformed, train_triangles_load, prefix='train_')
+    if (bool(args.write_mesh_train) == True):
+        train_vertices_transformed = train_vertices_transformed_inv.reshape(train_vertices_transformed_inv.shape[0], dim_vertex_1, dim_vertex_2)
+        write_out(train_vertices_transformed, train_triangles_load, prefix='train_')
 
     # Write out the test dataset
-    test_vertices_transformed = test_vertices_transformed_inv.reshape(test_vertices_transformed_inv.shape[0], dim_vertex_1, dim_vertex_2)
-    write_out(test_vertices_transformed, test_triangles_load, prefix='test_')
+    if (bool(args.write_mesh_test) == True):
+        test_vertices_transformed = test_vertices_transformed_inv.reshape(test_vertices_transformed_inv.shape[0], dim_vertex_1, dim_vertex_2)
+        write_out(test_vertices_transformed, test_triangles_load, prefix='test_')
 
     print('-End of the process-\n')
 
