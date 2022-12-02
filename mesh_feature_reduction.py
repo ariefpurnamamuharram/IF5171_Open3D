@@ -7,6 +7,8 @@ from sklearn.metrics import mean_squared_error
 import open3d as o3d
 from tqdm import tqdm
 from datetime import datetime
+from autoencoder import Autoencoder
+from keras import losses
 
 
 if __name__ == '__main__':
@@ -15,6 +17,8 @@ if __name__ == '__main__':
     parser.add_argument('--method', type=str, required=True)
     parser.add_argument('--filedir', type=str, required=True)
     parser.add_argument('--n_components', type=int)
+    parser.add_argument('--autoencoder_latentdim', type=int, default=64)
+    parser.add_argument('--autoencoder_epochs', type=int, default=10)
     parser.add_argument('--translation_comp', type=int)
     parser.add_argument('--translation_factor', type=float)
     parser.add_argument('--write_mesh_train', type=bool, default=False)
@@ -22,7 +26,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     # Check the arguments
-    if not str(args.method) in ('PCA'):
+    if not str(args.method) in ('PCA', 'Autoencoder'):
         raise ValueError('Method not supported!')
     if str(args.method) == 'PCA' and (args.n_components == None or int(args.n_components) == 0):
         raise ValueError('n-Components can not be empty!')
@@ -33,10 +37,6 @@ if __name__ == '__main__':
     # Create results folder, if not exists
     if not os.path.exists('results'):
         os.makedirs('results')
-
-    # Create models foler, if not exists
-    if not os.path.exists('models'):
-        os.makedirs('models')
 
     # Create logs folder, if not exists
     if not os.path.exists('logs'):
@@ -92,8 +92,9 @@ if __name__ == '__main__':
 
     print('--- Begin the PCA Analysis ---')
 
-    # Setup PCA n-components
+    # Method: PCA
     if str(args.method) == 'PCA':
+        # Setup PCA n-components
         if int(args.n_components) > len(train_vertices_load):
             print('Warning! n-Components is too many. Using the max possible value.')
             n_components = len(train_vertices_load)
@@ -148,6 +149,20 @@ if __name__ == '__main__':
                 test_vertices_transformed_inv = pca.inverse_transform(test_vertices_transformed)
         else:
             print('Mesh translation:', 'No')
+
+    # Setup autoencoder
+    if str(args.method) == 'Autoencoder':
+        latentdim = int(args.autoencoder_latentdim)
+        autoencoder = Autoencoder(latentdim)
+
+        autoencoder.compile(optimizer='adam', loss=losses.MeanSquaredError())
+
+        print(train_vertices_load.shape)
+
+        autoencoder.fit(train_vertices_load,
+            train_vertices_load, 
+            epochs=int(args.autoencoder_epochs), 
+            shuffle=True)
 
     print('-End of the process-\n')
 
