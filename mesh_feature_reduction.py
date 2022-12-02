@@ -6,22 +6,42 @@ from sklearn.decomposition import PCA
 from sklearn.metrics import mean_squared_error
 import open3d as o3d
 from tqdm import tqdm
+from datetime import datetime
 
 
 if __name__ == '__main__':
+    # Preparing the argument parser
     parser = argparse.ArgumentParser()
+    parser.add_argument('--method', required=True)
     parser.add_argument('--filedir', required=True)
-    parser.add_argument('--n_components', required=True)
+    parser.add_argument('--n_components')
     args = parser.parse_args()
 
+    # Check the arguments
+    if not str(args.method) in ('PCA'):
+        raise ValueError('Method not supported!')
+    if str(args.method) == 'PCA' and args.n_components == None:
+        raise ValueError('n-Components can not be empty!')
+
+    # Create results folder, if not exists
     if not os.path.exists('results'):
         os.makedirs('results')
 
+    # Create models foler, if not exists
+    if not os.path.exists('models'):
+        os.makedirs('models')
+
+    # Create logs folder, if not exists
+    if not os.path.exists('logs'):
+        os.makedirs('logs')
+
+    # Get all files
     files = os.listdir(str(args.filedir))
     files = sorted(files)
 
     print('--- Begin Train-Test Splitting --')
 
+    # Dataset splitting into train and test dataset
     file_train, file_test = train_test_split(
         files, test_size=0.1, random_state=0
     )
@@ -62,35 +82,51 @@ if __name__ == '__main__':
 
     print('--- Begin the PCA Analysis ---')
 
-    if int(args.n_components) > len(train_vertices_load):
-        print('Warning! n-Components is too many. Using the possible max value.')
-        n_components = len(train_vertices_load)
-    else:
-        n_components = int(args.n_components)
+    # Setup PCA n-components
+    if str(args.method) == 'PCA':
+        if int(args.n_components) > len(train_vertices_load):
+            print('Warning! n-Components is too many. Using the max possible value.')
+            n_components = len(train_vertices_load)
+        else:
+            n_components = int(args.n_components)
 
-    print('n-Components:', str(n_components))
+        print('n-Components:', str(n_components))
 
-    # PCA training process
-    pca = PCA(n_components=n_components, random_state=0)
-    train_vertices_transformed = pca.fit(train_vertices_load).transform(train_vertices_load)
-    train_vertices_transformed_inv = pca.inverse_transform(train_vertices_transformed)
+        # PCA training process
+        pca = PCA(n_components=n_components, random_state=0)
+        train_vertices_transformed = pca.fit(train_vertices_load).transform(train_vertices_load)
+        train_vertices_transformed_inv = pca.inverse_transform(train_vertices_transformed)
 
-    # Calculate train MSE
-    mse_train = mean_squared_error(train_vertices_load, train_vertices_transformed_inv)
-    print('Train mean square error:', mse_train)
+        # Calculate train MSE
+        mse_train = mean_squared_error(train_vertices_load, train_vertices_transformed_inv)
+        print('Train mean square error:', mse_train)
 
-    # PCA testing process
-    test_vertices_transformed = pca.transform(test_vertices_load)
-    test_vertices_transformed_inv = pca.inverse_transform(test_vertices_transformed)
+        # PCA testing process
+        test_vertices_transformed = pca.transform(test_vertices_load)
+        test_vertices_transformed_inv = pca.inverse_transform(test_vertices_transformed)
 
-    # Calculate train MSE
-    mse_test = mean_squared_error(test_vertices_load, test_vertices_transformed_inv)
-    print('Test mean square error:', mse_test)
+        # Calculate train MSE
+        mse_test = mean_squared_error(test_vertices_load, test_vertices_transformed_inv)
+        print('Test mean square error:', mse_test)
+
+        # Write the log
+        now = datetime.now()
+        log_filename = 'log_' + now.strftime('%Y%m%d') + '_' + now.strftime('%H%M%S') + '.txt'
+        with open(os.path.join('logs', log_filename), 'w') as fh:
+            fh.write('date\ttime\ttrain_mse\ttest_mse\n')
+            fh.write(f'{now.strftime("%Y-%m-%d")}\t{now.strftime("%H:%M:%S")}\t{mse_test}\t{mse_train}')
+
+        # Write the PCA components
+        now = datetime.now()
+        model_filename = 'model_' + now.strftime('%Y%m%d') + '_' + now.strftime('%H%M%S') + '.npy'
+        with open(os.path.join('models', model_filename), 'wb') as fh:
+            np.save(fh, train_vertices_transformed)
 
     print('-End of the process-\n')
 
     print('--- Begin Write Out the Data ---')
 
+    # Mesh writing function
     def write_out(vertices_load, triangles_load, prefix=''):
         for idx, vertices in tqdm(enumerate(vertices_load)):
             filename = f'{prefix}result.{idx}.ply'
